@@ -40,27 +40,26 @@ public class MainActivity extends AppCompatActivity {
     private AlarmManager alarmManager;
     private PendingIntent pendingIntent;
     private DbHelper db;
-    private List<Alarm> alarms;
-    private ListView listViewAlarm;
     private AlarmListAdapter alarmAdapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         toolbar = findViewById(R.id.toolbar);
-        listViewAlarm = findViewById(R.id.lvAlarm);
+        ListView listViewAlarm = findViewById(R.id.lvAlarm);
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         db = new DbHelper(this);
         setSupportActionBar(toolbar);
 
-        alarms = db.getAlarms();
-        alarmAdapter = new AlarmListAdapter(MainActivity.this, R.layout.list_alarm,  alarms);
+        List<Alarm> alarms = db.getAlarms();
+        alarmAdapter = new AlarmListAdapter(MainActivity.this, R.layout.list_alarm, alarms);
         listViewAlarm.setAdapter(alarmAdapter);
         listViewAlarm.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Alarm alarm = (Alarm) parent.getItemAtPosition(position);
-                Toast.makeText(getApplicationContext(), alarm.getId() + "", Toast.LENGTH_LONG).show();
+                openDialog("update", alarm);
             }
         });
     }
@@ -76,14 +75,16 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         if (id == R.id.addAlarm) {
-            openDialog();
+            // If create alarm set alarm to null
+            openDialog("create", null);
         }
         return super.onOptionsItemSelected(item);
     }
 
-    public void openDialog() {
+    public void openDialog(String type, final Alarm alarm) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.alarm_picker, null);
+        // Set up spinner select Ringtone
         final Spinner spinner = view.findViewById(R.id.spinner);
         final TimePicker timePicker = view.findViewById(R.id.timePicker);
         final Map<String, String> ringList = getRingtone();
@@ -92,39 +93,45 @@ public class MainActivity extends AppCompatActivity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         builder.setView(view);
-        builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                int hour;
-                int minute;
-                if (Build.VERSION.SDK_INT >= 23) {
-                    hour = timePicker.getHour();
-                    minute = timePicker.getMinute();
-                } else {
-                    hour = timePicker.getCurrentHour();
-                    minute = timePicker.getCurrentMinute();
-                }
-                Calendar calendar = Calendar.getInstance();
-                calendar.set(Calendar.HOUR_OF_DAY, hour);
-                calendar.set(Calendar.MINUTE, minute);
-                long timeAlarm = calendar.getTimeInMillis();
-                String tone = getRingtone(spinner, ringList);
-                Alarm alarm = new Alarm(timeAlarm, tone);
-                int id = db.addPlayer(alarm);
-                Intent intent = new Intent(getApplicationContext(), AlarmReceiver.class);
-                intent.putExtra("id", id);
-                intent.putExtra("tone", tone);
-                pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
-                        Integer.parseInt(id + ""), intent, 0);
-                setAlarm(calendar.getTimeInMillis());
-                alarmAdapter.clear();
-                alarmAdapter.addAll(db.getAlarms());
-                alarmAdapter.notifyDataSetChanged();
-            }
-        }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
 
+        // Set up positive button: (Two type action: create alarm and update alarm)
+        if (type.equals("create")) {
+            builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    long timeAlarm = getTimeAlarmViaTimePicker(timePicker);
+                    String tone = getRingtone(spinner, ringList);
+                    Alarm alarm = new Alarm(timeAlarm, tone);
+                    int id = db.addPlayer(alarm);
+                    Intent intent = createIntentAlarm(id, tone);
+                    pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
+                            Integer.parseInt(id + ""), intent, 0);
+                    setAlarm(timeAlarm);
+                    reloadListView(alarmAdapter);
+                }
+            });
+        } else if (type.equals("update")) {
+            builder.setPositiveButton("Update", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    long timeAlarm = getTimeAlarmViaTimePicker(timePicker);
+                    String tone = getRingtone(spinner, ringList);
+                    alarm.setTimeAlarm(timeAlarm);
+                    alarm.setRingtone(tone);
+                    alarm.setIsActive(1);
+                    db.updateAlarm(alarm);
+                    Intent intent = createIntentAlarm(alarm.getId(), tone);
+                    pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
+                            Integer.parseInt(alarm.getId() + ""), intent, PendingIntent.FLAG_UPDATE_CURRENT);
+                    setAlarm(timeAlarm);
+                    reloadListView(alarmAdapter);
+                }
+            });
+        }
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
             }
         });
 
@@ -135,6 +142,36 @@ public class MainActivity extends AppCompatActivity {
     private String getRingtone(Spinner spinner, Map<String, String> ringList) {
         String name = spinner.getSelectedItem().toString();
         return ringList.get(name);
+    }
+
+    private Long getTimeAlarmViaTimePicker(TimePicker timePicker) {
+        int hour;
+        int minute;
+        if (Build.VERSION.SDK_INT >= 23) {
+            hour = timePicker.getHour();
+            minute = timePicker.getMinute();
+        } else {
+            hour = timePicker.getCurrentHour();
+            minute = timePicker.getCurrentMinute();
+        }
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, hour);
+        calendar.set(Calendar.MINUTE, minute);
+        calendar.set(Calendar.SECOND, 0);
+        return calendar.getTimeInMillis();
+    }
+
+    private Intent createIntentAlarm(long id, String tone) {
+        Intent intent = new Intent(getApplicationContext(), AlarmReceiver.class);
+        intent.putExtra("id", id);
+        intent.putExtra("tone", tone);
+        return intent;
+    }
+
+    private void reloadListView(AlarmListAdapter alarmAdapter) {
+        alarmAdapter.clear();
+        alarmAdapter.addAll(db.getAlarms());
+        alarmAdapter.notifyDataSetChanged();
     }
 
     private void setAlarm(long timeAlarm) {
