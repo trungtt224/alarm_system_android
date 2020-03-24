@@ -13,6 +13,7 @@ import android.database.Cursor;
 import android.media.RingtoneManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -105,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
                     int id = db.addPlayer(alarm);
                     Intent intent = createIntentAlarm(id, tone);
                     pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
-                            Integer.parseInt(id + ""), intent, 0);
+                            Integer.parseInt(id + ""), intent, PendingIntent.FLAG_UPDATE_CURRENT);
                     setAlarm(timeAlarm);
                     reloadListView(alarmAdapter);
                 }
@@ -200,5 +201,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return list;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (Intent.ACTION_MAIN.equals(intent.getAction())) {
+            Log.i("MyLauncher", "onNewIntent: HOME Key");
+        }
     }
 }

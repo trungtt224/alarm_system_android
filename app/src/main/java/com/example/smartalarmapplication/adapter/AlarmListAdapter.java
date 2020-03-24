@@ -49,7 +49,7 @@ public class AlarmListAdapter extends ArrayAdapter<Alarm> {
         String date = fromMilisTo(this.alarms.get(position).getTimeAlarm(), "dd-MM");
         String dayOfWeek = fromMilisTo(this.alarms.get(position).getTimeAlarm(), "EEEE");
 
-        timeView.setText(time);
+        timeView.setText(time + " " + getAMOrPM((this.alarms.get(position).getTimeAlarm())));
         dateView.setText(dayOfWeek + ", " + date);
 
         // Set icon alarm is active or disable
@@ -70,19 +70,14 @@ public class AlarmListAdapter extends ArrayAdapter<Alarm> {
         return formatter.format(calendar.getTime());
     }
 
-    private String dayOfWeek(long millis) {
+    private String getAMOrPM(long millis) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(millis);
-        int dayNum = calendar.get(Calendar.DAY_OF_WEEK);
-        switch (dayNum) {
-            case 0: return "Monday";
-            case 1: return "Tuesday";
-            case 2: return "Wednesday";
-            case 3: return "Thursday";
-            case 4: return "Friday";
-            case 5: return "Saturday";
-            case 6: return "Sunday";
-            default: return "";
+        int a = calendar.get(Calendar.AM_PM);
+        if (a == Calendar.AM) {
+            return "AM";
+        } else {
+            return "PM";
         }
     }
 
