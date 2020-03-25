@@ -37,7 +37,6 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Toolbar toolbar;
     private AlarmManager alarmManager;
     private PendingIntent pendingIntent;
     private DbHelper db;
@@ -47,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        toolbar = findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         ListView listViewAlarm = findViewById(R.id.lvAlarm);
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         db = new DbHelper(this);
@@ -104,9 +103,7 @@ public class MainActivity extends AppCompatActivity {
                     String tone = getRingtone(spinner, ringList);
                     Alarm alarm = new Alarm(timeAlarm, tone);
                     int id = db.addPlayer(alarm);
-                    Intent intent = createIntentAlarm(id, tone);
-                    pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
-                            Integer.parseInt(id + ""), intent, PendingIntent.FLAG_UPDATE_CURRENT);
+                    createBroadcast(id, tone);
                     setAlarm(timeAlarm);
                     reloadListView(alarmAdapter);
                 }
@@ -121,9 +118,7 @@ public class MainActivity extends AppCompatActivity {
                     alarm.setRingtone(tone);
                     alarm.setIsActive(1);
                     db.updateAlarm(alarm);
-                    Intent intent = createIntentAlarm(alarm.getId(), tone);
-                    pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
-                            Integer.parseInt(alarm.getId() + ""), intent, PendingIntent.FLAG_UPDATE_CURRENT);
+                    createBroadcast(alarm.getId(), tone);
                     setAlarm(timeAlarm);
                     reloadListView(alarmAdapter);
                 }
@@ -159,14 +154,16 @@ public class MainActivity extends AppCompatActivity {
         calendar.set(Calendar.HOUR_OF_DAY, hour);
         calendar.set(Calendar.MINUTE, minute);
         calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
         return calendar.getTimeInMillis();
     }
 
-    private Intent createIntentAlarm(long id, String tone) {
+    private void createBroadcast(int id, String tone) {
         Intent intent = new Intent(getApplicationContext(), AlarmReceiver.class);
         intent.putExtra("id", id);
         intent.putExtra("tone", tone);
-        return intent;
+        pendingIntent = PendingIntent.getBroadcast(MainActivity.this,
+                Integer.parseInt(id + ""), intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     private void reloadListView(AlarmListAdapter alarmAdapter) {
@@ -180,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
             timeAlarm = timeAlarm + 24 * 60 * 60 * 1000;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeAlarm, pendingIntent);
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeAlarm, pendingIntent);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeAlarm, pendingIntent);
         } else {
@@ -204,10 +201,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        if (Intent.ACTION_MAIN.equals(intent.getAction())) {
-            Log.i("MyLauncher", "onNewIntent: HOME Key");
-        }
+    protected void onResume() {
+        alarmAdapter.notifyDataSetChanged();
+        super.onResume();
     }
 }

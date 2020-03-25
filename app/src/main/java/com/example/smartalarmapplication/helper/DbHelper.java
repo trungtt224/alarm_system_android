@@ -56,16 +56,6 @@ public class DbHelper extends SQLiteOpenHelper {
         return id;
     }
 
-    public Alarm getAlarm(int id) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.query(TABLE_NAME, COLUMNS, " id = ? ",
-                new String[] {String.valueOf(id)},
-                null, null, null, null);
-        if (cursor != null) cursor.moveToFirst();
-        assert cursor != null;
-        return rowMapper(cursor);
-    }
-
     public List<Alarm> getAlarms() {
         List<Alarm> alarms = new ArrayList<>();
         String query = "SELECT * FROM " + TABLE_NAME;
@@ -92,6 +82,19 @@ public class DbHelper extends SQLiteOpenHelper {
                 values, // column/value
                 "id = ?", // selections
                 new String[] { String.valueOf(alarm.getId()) });
+
+        db.close();
+        return i;
+    }
+
+    public int updateStatus(int id, int isActive) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_ISACTIVE, isActive);
+        int i = db.update(TABLE_NAME, // table
+                values, // column/value
+                "id = ?", // selections
+                new String[] { String.valueOf(id) });
 
         db.close();
         return i;

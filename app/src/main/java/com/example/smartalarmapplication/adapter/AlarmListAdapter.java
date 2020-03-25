@@ -21,20 +21,15 @@ import java.util.Calendar;
 import java.util.List;
 
 public class AlarmListAdapter extends ArrayAdapter<Alarm> {
-    Activity context;
-    List<Alarm> alarms;
-    int resource;
+    private Activity context;
+    private List<Alarm> alarms;
+    private int resource;
     public AlarmListAdapter(@NonNull Activity context, int resource, List<Alarm> alarms) {
         super(context, resource, alarms);
         this.context = context;
         this.alarms = alarms;
         this.resource = resource;
     }
-
-//    @Override
-//    public int getCount() {
-//        return alarms.size();
-//    }
 
     @NonNull
     @Override
