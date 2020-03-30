@@ -155,7 +155,12 @@ public class MainActivity extends AppCompatActivity {
         calendar.set(Calendar.MINUTE, minute);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTimeInMillis();
+        // Check if time alarm less than current time -> Set time alarm is tomorrow
+        long timeAlarm = calendar.getTimeInMillis();
+        if (timeAlarm < System.currentTimeMillis()) {
+            timeAlarm = timeAlarm + 24 * 60 * 60 * 1000;
+        }
+        return timeAlarm;
     }
 
     private void createBroadcast(int id, String tone) {
@@ -173,9 +178,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setAlarm(long timeAlarm) {
-        if (timeAlarm < System.currentTimeMillis()) {
-            timeAlarm = timeAlarm + 24 * 60 * 60 * 1000;
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeAlarm, pendingIntent);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
